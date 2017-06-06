@@ -90,7 +90,8 @@ ENV/
 
 *.pyc
 *.swp
-
+*.txt
+*.p
 *.jpg
 *.npy
 *.pyc

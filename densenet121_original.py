@@ -66,23 +66,10 @@ def DenseNet(nb_dense_block=4, growth_rate=32, nb_filter=64, reduction=0.0, drop
     x = Activation('relu', name='relu'+str(final_stage)+'_blk')(x)
     x = GlobalAveragePooling2D(name='pool'+str(final_stage))(x)
 
-    x = Dense(1000, name='fc6')(x)
+    x = Dense(classes, name='fc6')(x)
     x = Activation('softmax', name='prob')(x)
 
     model = Model(img_input, x, name='densenet')
-
-
-#--------------------------------------------------------------------------------
-    print "model.layers[-1]: ", model.layers[-1]
-    model.layers.pop()
-    model.layers.pop()
-    print "model.layers[-1]: ", model.layers[-1]
-
-    x = model.layers[-1].output
-    x = Dense(classes, name='fc6')(x)
-    preds = Activation('softmax', name='prob')(x)
-
-    model = Model(img_input, preds, name='densenet')
 
     if weights_path is not None:
       model.load_weights(weights_path)

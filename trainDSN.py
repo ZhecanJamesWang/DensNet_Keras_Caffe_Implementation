@@ -17,9 +17,10 @@ from keras.models import Model
 
 # from keras.callbacks import ModelCheckpoint
 # from keras import callbacks
-from sklearn.preprocessing import LabelEncoder
+# from sklearn.preprocessing import LabelEncoder
 
 from densenet121 import DenseNet
+# from densenet121_original import DenseNet
 import utility as ut
 import pickle
 
@@ -29,21 +30,25 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 class trainDSN(object):
 	def __init__(self):
-
-		# self.init = True
+		self.preLoad = True
+		self.init = True
 		self.debug = True
-		self.outputDir = "./output/05282017_01_output/"
-		self.modelDir = "./output/05282017_01_model/"
+		self.outputDir = "./output/06062017_01_baseSet_output/"
+		self.modelDir = "./output/06062017_01_baseSet_model/"
 		self.imSize = 224
 		self.derivateNum = 2
-		self.classNum = 46936
-		self.weights_path = 'imagenet_models/densenet121_weights_tf.h5'
+
+		self.classNum = 19999
+
+		# self.weights_path = 'imagenet_models/densenet121_weights_tf.h5'
 
 		# with open('dummy_labels.txt', 'r') as f:
 		# 	self.labels = f.readlines()
 		# print "len(self.labels): ", len(self.labels)
 
-		TrainPath = "MScleanTrainFilterNovelBase.txt"
+		# TrainPath = "MScleanTrainFilterNovelBaseFilterLowImageIdentityServer.txt"
+		TrainPath = "MSchallenge2BaseServer.txt"
+
 		# TestPath = 'MScleanTrainFilterNovelBase.txt'
 
 		FTr = open(TrainPath,'r')
@@ -58,50 +63,31 @@ class trainDSN(object):
 		# self.DataTe = FTe.readlines()
 		TeNum = len(self.DataTe)
 
-		print "len(self.DataTr): ", len(self.DataTr)
-		print "len(self.DataTe): ", len(self.DataTe)
-
+		logInfo = ""
+		print "len(self.DataTr): ", TrNum
+		print "len(self.DataTe): ", TeNum
+		logInfo += ( "len(self.DataTr): ", TrNum)
+		logInfo += ( "len(self.DataTe): ", TeNum)
 
 		shuffle(self.DataTr)
 
 		# print "type(DataTr): ", type(self.DataTr)
 		# print "len(DataTr): ", len(self.DataTr)
 
-		self.batch_size = 32
+		self.batch_size = 10
 		self.MaxIters = int(TrNum/float(self.batch_size))
 		self.MaxTestIters = int(TeNum/float(self.batch_size))
 
-		print "train data length:", TrNum
-		print "test data length:", TeNum
 		print "self.MaxIters: ", self.MaxIters
 		print "self.MaxTestIters: ", self.MaxTestIters
+		logInfo += ("self.MaxIters: ", self.MaxIters)
+		logInfo += ("self.MaxTestIters: ", self.MaxTestIters)
 
 		self.labelList = pickle.load( open("uniqueLabelList.p", "rb"))
 
 		print "len(self.labelList): ", len(self.labelList)
-
-	def transformOneHot(self):
-		print "transfer labels to one hot representation"
-		labels = []
-		counter = 0
-		for line in self.DataTr:
-			split = line.split("\t")
-			label = split[1].replace("\n", "")
-			# print "label: ", label
-			labels.append(label)
-			counter += 1
-			# if counter >= 130:
-			# 	break
-			if counter%1000000 == 0:
-				print "counter: ", counter
-
-		encoder = LabelEncoder()
-		encoder.fit(labels)
-		encoded_labels = encoder.transform(labels)
-		print encoded_labels
-		self.dummy_labels = np_utils.to_categorical(encoded_labels)
-		print "self.dummy_labels.shape:", self.dummy_labels.shape
-		print "self.dummy_labels[0]: ", self.dummy_labels[0]
+		logInfo += ("len(self.labelList): ", len(self.labelList))
+		self.writeToLog(logInfo)
 
 	def final_pred(self, y_true, y_pred):
 		# y_cont=np.concatenate(y_pred,axis=1)
@@ -109,8 +95,9 @@ class trainDSN(object):
 
 
 	def DataGenBB(self, DataStrs, train_start,train_end):
-		# generateFunc = ["original", "mirror", "scale", "rotate", "translate", "brightnessAndContrast"]
-		generateFunc = ["original", "mirror", "rotate", "translate"]
+		#  "scale",
+		generateFunc = ["original", "mirror", "rotate", "translate", "brightnessAndContrast"]
+		# generateFunc = ["original", "mirror", "rotate", "translate"]
 
 		InputData = np.zeros([self.batch_size * self.derivateNum, self.imSize, self.imSize, 3], dtype = np.float32)
 		# InputLabel = np.zeros([self.batch_size * len(generateFunc), 7], dtype = np.float32)
@@ -121,7 +108,9 @@ class trainDSN(object):
 		for i in range(train_start,train_end):
 			strLine = DataStrs[i]
 			split = strLine.split("\t")
-			imgPath = split[0].replace(".jpg", ".png")
+			# imgPath = split[0].replace(".jpg", ".png")
+			imgPath = split[0]
+			????????????????????????????????????????????????????????
 			label = split[1].replace("\n", "")
 			print "self.labelList[10:]: ", self.labelList[:10]
 			labelOneHot = np.zeros(len(self.labelList))
@@ -169,7 +158,7 @@ class trainDSN(object):
 						newImg, newX, newY = img, x, y
 						# newImg, newX, newY = ut.scale(img, x, y, imSize = self.imSize)
 					# elif method == "scale":
-					# 	newImg, newX, newY = ut.scale(img, x, y, imSize = self.imSize)
+					# 	newImg, newX, newY = ut.scale(img, x, y)
 					else:
 						raise "not existing function"
 
@@ -190,6 +179,13 @@ class trainDSN(object):
 
 
 					# print "len(InputData): ", len(InputData)
+
+					# BGR mean values [103.94,116.78,123.68] are subtracted
+					newImg = newImg.copy()
+					newImg[:, :, 0] = newImg[:, :, 0] - 103.94
+					newImg[:, :, 1] = newImg[:, :, 1] - 116.78
+					newImg[:, :, 2] = newImg[:, :, 2] - 123.68
+
 					InputData[count,...] = newImg
 					InputLabel[count,...] = label
 					InputNames.append(imgPath)
@@ -203,16 +199,19 @@ class trainDSN(object):
 		return InputData, InputLabel, np.asarray(InputNames)
 
 
-	def train_on_batch(self, nb_epoch, MaxIters):
+	def train_on_batch(self, nb_epoch, MaxIters = None):
 		if os.path.exists(self.modelDir)==False:
 			os.mkdir(self.modelDir)
 		if os.path.exists(self.outputDir)==False:
 			os.mkdir(self.outputDir)
+		if MaxIters == None:
+			MaxIters = self.MaxIters
 
 		for e in range(nb_epoch):
 			shuffle(self.DataTr)
 			iterTest=0
-			for iter in range (self.MaxIters):
+
+			for iter in range (MaxIters):
 				train_start=iter*self.batch_size
 				train_end = (iter+1)*self.batch_size
 				X_batch, label_BB, Z_Names = self.DataGenBB(self.DataTr, train_start=train_start, train_end=train_end)
@@ -224,37 +223,38 @@ class trainDSN(object):
 
 
 				if iter%1000 == 0:
-				    logInfo = ""
-				    if os.path.exists(self.outputDir + 'log.txt') and self.init == False:
-				        f = open(self.outputDir + 'log.txt', 'a')
-				    else:
-				        f = open(self.outputDir + 'log.txt','w')
-				        self.init = False
-				
-				    iterationInfo = ("^^^^^" + "\n" + 'iteration: ' + str(iter))
-				    logInfo += iterationInfo
-				    print iterationInfo
-				
-				
-				    test_start = iterTest * self.batch_size
-				    test_end = (iterTest + 1) * self.batch_size
-				    X_batch_T, label_BB_T, Z_Names_T= self.DataGenBB(self.DataTe, train_start=test_start, train_end=test_end)
-				    loss, tras, pred = self.model.evaluate(X_batch_T,label_BB_T)
-				
-								
-				    testInfo = ("====" + "\n" + "loss, TEST: " + str(loss))
-				    logInfo += testInfo
-				    print testInfo
-				
-				
-				    iterTest += self.batch_size
-				    iterTest %= self.MaxTestIters
-				
-				    f.write(logInfo)
-				    f.close()
+					logInfo = ""
+					if os.path.exists(self.outputDir + 'log.txt') and self.init == False:
+						f = open(self.outputDir + 'log.txt', 'a')
+					else:
+						f = open(self.outputDir + 'log.txt','w')
+						self.init = False
+
+
+					iterationInfo = ("^^^^^" + "\n" + 'iteration: ' + str(iter))
+					logInfo += iterationInfo
+					print iterationInfo
+
+
+					test_start = iterTest * self.batch_size
+					test_end = (iterTest + 1) * self.batch_size
+					X_batch_T, label_BB_T, Z_Names_T= self.DataGenBB(self.DataTe, train_start=test_start, train_end=test_end)
+					loss, tras, pred = self.model.evaluate(X_batch_T,label_BB_T)
+
+
+					testInfo = ("====" + "\n" + "loss, TEST: " + str(loss))
+					logInfo += testInfo
+					print testInfo
+
+
+					iterTest += self.batch_size
+					iterTest %= self.MaxTestIters
+
+					f.write(logInfo)
+					f.close()
 
 				if iter%3000==0:
-				    self.model.save(self.modelDir + '/model%d.h5'%iter)
+					self.model.save(self.modelDir + '/model%d.h5'%iter)
 
 	# def pop_layer(self, model):
 	#     if not model.outputs:
@@ -273,18 +273,32 @@ class trainDSN(object):
 
 	def run(self):
 
-		self.model = DenseNet(reduction = 0.5, classes = self.classNum, weights_path = self.weights_path)
-		sgd = SGD(lr = 0.01, momentum = 0.9, nesterov = True)
+		if self.preLoad:
+			self.weights_path = "/home/james/DenseNet-Keras/output/06032017_03_model/model30000.h5"
+			print "self.weightPath: ", self.weights_path
 
+			self.model = DenseNet(classes = self.classNum, weights_path = self.weights_path)
+		else:
+			self.model = DenseNet(classes = self.classNum)
+
+		# self.model = m.model(input_shape=(self.imSize, self.imSize, 3), weights_path = self.weightPath)
+		#
+
+		# self.model = DenseNet(reduction = 0.5, classes = self.classNum, weights_path = self.weights_path)
+		# self.model = DenseNet(classes = 1000, weights_path = self.weights_path)
+
+
+		sgd = SGD(lr = 0.01, momentum = 0.9, nesterov = True)
+		#
 		self.model.compile(optimizer = sgd, loss = 'categorical_crossentropy', metrics=['accuracy', self.final_pred])
 
 		self.model.summary()
 		# self.transformOneHot()
-		self.train_on_batch(1, MaxIters = 20000)
+		self.train_on_batch(1)
 
 
 		# self.model.compile(optimizer = sgd, loss = 'categorical_crossentropy', metrics=['accuracy', self.final_pred])
-	   
+
 
 		# print "self.model.layers[-1]: ", self.model.layers[-1]
 		# self.model.layers.pop()
@@ -303,7 +317,38 @@ class trainDSN(object):
 
 		# self.model = Model(img_input, preds)
 
+	def writeToLog(self, content):
+		if os.path.exists(self.outputDir + 'log.txt') and self.init == False:
+			f = open(self.outputDir + 'log.txt', 'a')
+		else:
+			f = open(self.outputDir + 'log.txt','w')
+			self.init = False
+		f.write(content)
+		f.close()
 
+
+	# def transformOneHot(self):
+	# 	print "transfer labels to one hot representation"
+	# 	labels = []
+	# 	counter = 0
+	# 	for line in self.DataTr:
+	# 		split = line.split("\t")
+	# 		label = split[1].replace("\n", "")
+	# 		# print "label: ", label
+	# 		labels.append(label)
+	# 		counter += 1
+	# 		# if counter >= 130:
+	# 		# 	break
+	# 		if counter%1000000 == 0:
+	# 			print "counter: ", counter
+	#
+	# 	encoder = LabelEncoder()
+	# 	encoder.fit(labels)
+	# 	encoded_labels = encoder.transform(labels)
+	# 	print encoded_labels
+	# 	self.dummy_labels = np_utils.to_categorical(encoded_labels)
+	# 	print "self.dummy_labels.shape:", self.dummy_labels.shape
+	# 	print "self.dummy_labels[0]: ", self.dummy_labels[0]
 
 	def main(self):
 		self.run()

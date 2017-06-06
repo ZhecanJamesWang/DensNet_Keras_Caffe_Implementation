@@ -66,13 +66,27 @@ def DenseNet(nb_dense_block=4, growth_rate=48, nb_filter=96, reduction=0.0, drop
     x = Activation('relu', name='relu'+str(final_stage)+'_blk')(x)
     x = GlobalAveragePooling2D(name='pool'+str(final_stage))(x)
 
-    x = Dense(classes, name='fc6')(x)
+    x = Dense(1000, name='fc6')(x)
     x = Activation('softmax', name='prob')(x)
 
     model = Model(img_input, x, name='densenet')
 
     if weights_path is not None:
       model.load_weights(weights_path)
+# ------------------------------------------------------------------------------
+
+    print "model.layers[-1]: ", model.layers[-1]
+    model.layers.pop()
+    model.layers.pop()
+    print "model.layers[-1]: ", model.layers[-1]
+
+    # last = model.output
+    x = model.layers[-1].output
+    # x = Dense(1000, name='fc6')(x)
+    x = Dense(classes, name='fc6')(x)
+    preds = Activation('softmax', name='prob')(x)
+
+    model = Model(img_input, preds, name='densenet')
 
     return model
 
@@ -80,7 +94,7 @@ def DenseNet(nb_dense_block=4, growth_rate=48, nb_filter=96, reduction=0.0, drop
 def conv_block(x, stage, branch, nb_filter, dropout_rate=None, weight_decay=1e-4):
     '''Apply BatchNorm, Relu, bottleneck 1x1 Conv2D, 3x3 Conv2D, and option dropout
         # Arguments
-            x: input tensor 
+            x: input tensor
             stage: index for dense block
             branch: layer index within each dense block
             nb_filter: number of filters
@@ -92,7 +106,7 @@ def conv_block(x, stage, branch, nb_filter, dropout_rate=None, weight_decay=1e-4
     relu_name_base = 'relu' + str(stage) + '_' + str(branch)
 
     # 1x1 Convolution (Bottleneck layer)
-    inter_channel = nb_filter * 4  
+    inter_channel = nb_filter * 4
     x = BatchNormalization(epsilon=eps, axis=concat_axis, name=conv_name_base+'_x1_bn')(x)
     x = Scale(axis=concat_axis, name=conv_name_base+'_x1_scale')(x)
     x = Activation('relu', name=relu_name_base+'_x1')(x)
@@ -115,7 +129,7 @@ def conv_block(x, stage, branch, nb_filter, dropout_rate=None, weight_decay=1e-4
 
 
 def transition_block(x, stage, nb_filter, compression=1.0, dropout_rate=None, weight_decay=1E-4):
-    ''' Apply BatchNorm, 1x1 Convolution, averagePooling, optional compression, dropout 
+    ''' Apply BatchNorm, 1x1 Convolution, averagePooling, optional compression, dropout
         # Arguments
             x: input tensor
             stage: index for dense block
@@ -128,7 +142,7 @@ def transition_block(x, stage, nb_filter, compression=1.0, dropout_rate=None, we
     eps = 1.1e-5
     conv_name_base = 'conv' + str(stage) + '_blk'
     relu_name_base = 'relu' + str(stage) + '_blk'
-    pool_name_base = 'pool' + str(stage) 
+    pool_name_base = 'pool' + str(stage)
 
     x = BatchNormalization(epsilon=eps, axis=concat_axis, name=conv_name_base+'_bn')(x)
     x = Scale(axis=concat_axis, name=conv_name_base+'_scale')(x)
@@ -168,4 +182,3 @@ def dense_block(x, stage, nb_layers, nb_filter, growth_rate, dropout_rate=None, 
             nb_filter += growth_rate
 
     return concat_feat, nb_filter
-
